@@ -25,7 +25,9 @@ FUEL = 0x2F
 PID_REQUEST = 0x7DF
 PID_REPLY = 0x7E8
 
-outfile = open('log.txt', 'w')
+user_name = input("Please enter your name(only first name): ")
+print(f"Hello {user_name}, Have a nice Drive!")
+outfile = open(user_name, 'w')
 
 print('\n\rCAN Rx test')
 print('Bring up CAN0....')
@@ -128,9 +130,9 @@ try:
                 throttle = round((message.data[3] * 100) / 255)  # Conver data to %
 
             if message.arbitration_id == PID_REPLY and message.data[2] == FUEL:
-                fuel = message.data[3]
+                fuel = (100 / 255) * message.data[3]
 
-        c += '{0:d},{1:d},{2:d},{3:d}'.format(temperature, rpm, speed, throttle, fuel)
+        c += '{0:d},{1:d},{2:d},{3:d},{4:d}'.format(temperature, rpm, speed, throttle, fuel)
         print('\r {} '.format(c))
         print(c, file=outfile)  # Save data to file
         count += 1
