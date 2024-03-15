@@ -5,7 +5,9 @@ import can
 import time
 import os
 import queue
-from threading import Thread
+from threading import
+import datetime
+
 
 led = 22
 GPIO.setmode(GPIO.BCM)
@@ -117,8 +119,10 @@ try:
             while (q.empty() == True):  # Wait until there is a message
                 pass
             message = q.get()
+            dt_object = datetime.datetime.fromtimestamp(message.timestamp)
+            formatted_time = dt_object.strftime('%Y-%m-%d %H:%M:%S')
 
-            c = '{0:f},{1:d},'.format(message.timestamp, count)
+            c = '{0:f},{1:s},{2:d}'.format(message.timestamp,formatted_time, count)
             if message.arbitration_id == PID_REPLY and message.data[2] == ENGINE_COOLANT_TEMP:
                 temperature = message.data[3] - 40  # Convert data into temperature in degree C
 
@@ -148,4 +152,6 @@ except KeyboardInterrupt:
     os.system("sudo /sbin/ip link set can0 down")
     print('\n\rKeyboard interrtupt')
 
+if input("if you want to shutdown the Raspberry Pi press 's': ") == 's':
+    os.system("sudo shutdown -h now")
 print(f'See you again {user_name}')
