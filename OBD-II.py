@@ -27,7 +27,8 @@ PID_REPLY = 0x7E8
 
 user_name = input("Please enter your name(only first name): ")
 print(f"Hello {user_name}, Have a nice Drive!")
-outfile = open(user_name, 'w')
+
+outfile = open(f'{user_name}.txt', 'a')
 
 print('\n\rCAN Rx test')
 print('Bring up CAN0....')
@@ -111,6 +112,9 @@ count = 0
 # Main loop
 try:
     while True:
+        if input("Press 'q' to quit: ") == 'q':
+            break
+
         for i in range(4):
             while (q.empty() == True):  # Wait until there is a message
                 pass
@@ -139,10 +143,11 @@ try:
 
 
 
-
 except KeyboardInterrupt:
     # Catch keyboard interrupt
     GPIO.output(led, False)
     outfile.close()  # Close logger file
     os.system("sudo /sbin/ip link set can0 down")
     print('\n\rKeyboard interrtupt')
+
+print(f'See you again {user_name}')
