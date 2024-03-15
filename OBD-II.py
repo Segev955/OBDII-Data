@@ -112,8 +112,6 @@ count = 0
 # Main loop
 try:
     while True:
-        if input("Press 'q' to quit: ") == 'q':
-            break
 
         for i in range(4):
             while (q.empty() == True):  # Wait until there is a message
@@ -134,7 +132,7 @@ try:
                 throttle = round((message.data[3] * 100) / 255)  # Conver data to %
 
             if message.arbitration_id == PID_REPLY and message.data[2] == FUEL:
-                fuel = (100 / 255) * message.data[3]
+                fuel = round((100 / 255) * message.data[3])
 
         c += '{0:d},{1:d},{2:d},{3:d},{4:d}'.format(temperature, rpm, speed, throttle, fuel)
         print('\r {} '.format(c))
