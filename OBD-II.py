@@ -5,7 +5,7 @@ import can
 import time
 import os
 import queue
-from threading import
+from threading import Thread
 import datetime
 
 
