@@ -23,6 +23,14 @@ MAF_SENSOR = 0x10
 O2_VOLTAGE = 0x14
 THROTTLE = 0x11
 FUEL = 0x2F
+TEST1 = 0x0100
+TEST2 = 0x0101
+TEST3 = 0x0102
+TEST4 = 0x0103
+TEST5 = 0x0104
+TEST6 = 0x0105
+TEST7 = 0x0106
+TEST8 = 0x0107
 
 PID_REQUEST = 0x7DF
 PID_REPLY = 0x7E8
@@ -90,6 +98,43 @@ def can_tx_task():  # Transmit thread
         bus.send(msg)
         time.sleep(0.05)
 
+        # Sent a FUEL level request
+        msg = can.Message(arbitration_id=PID_REQUEST, data=[0x02, 0x01, TEST1, 0x00, 0x00, 0x00, 0x00, 0x00],
+                          is_extended_id=False)
+        bus.send(msg)
+        time.sleep(0.05)
+
+        # Sent a FUEL level request
+        msg = can.Message(arbitration_id=PID_REQUEST, data=[0x02, 0x01, TEST2, 0x00, 0x00, 0x00, 0x00, 0x00],
+                          is_extended_id=False)
+        bus.send(msg)
+        time.sleep(0.05)
+        # Sent a FUEL level request
+        msg = can.Message(arbitration_id=PID_REQUEST, data=[0x02, 0x01, TEST3, 0x00, 0x00, 0x00, 0x00, 0x00],
+                          is_extended_id=False)
+        bus.send(msg)
+        time.sleep(0.05)
+        # Sent a FUEL level request
+        msg = can.Message(arbitration_id=PID_REQUEST, data=[0x02, 0x01, TEST4, 0x00, 0x00, 0x00, 0x00, 0x00],
+                          is_extended_id=False)
+        bus.send(msg)
+        time.sleep(0.05)
+        # Sent a FUEL level request
+        msg = can.Message(arbitration_id=PID_REQUEST, data=[0x02, 0x01, TEST5, 0x00, 0x00, 0x00, 0x00, 0x00],
+                          is_extended_id=False)
+        bus.send(msg)
+        time.sleep(0.05)
+        # Sent a FUEL level request
+        msg = can.Message(arbitration_id=PID_REQUEST, data=[0x02, 0x01, TEST6, 0x00, 0x00, 0x00, 0x00, 0x00],
+                          is_extended_id=False)
+        bus.send(msg)
+        time.sleep(0.05)
+        # Sent a FUEL level request
+        msg = can.Message(arbitration_id=PID_REQUEST, data=[0x02, 0x01, TEST7, 0x00, 0x00, 0x00, 0x00, 0x00],
+                          is_extended_id=False)
+        bus.send(msg)
+        time.sleep(0.05)
+
 
 
         GPIO.output(led, False)
@@ -107,6 +152,13 @@ rpm = 0
 speed = 0
 throttle = 0
 fuel = 0
+test1 = 0
+test2 = 0
+test3 = 0
+test4 = 0
+test5 = 0
+test6 = 0
+test7 = 0
 c = ''
 count = 0
 
@@ -137,8 +189,29 @@ try:
 
             if message.arbitration_id == PID_REPLY and message.data[2] == FUEL:
                 fuel = round((100 / 255) * message.data[3])
+            #     ///////////////////////////////////////////////
+            if message.arbitration_id == PID_REPLY and message.data[2] == TEST1:
+                test1 = message.data[3]
 
-        c += '{0:d},{1:d},{2:d},{3:d},{4:d}'.format(temperature, rpm, speed, throttle, fuel)
+            if message.arbitration_id == PID_REPLY and message.data[2] == TEST2:
+                test2 = message.data[3]
+
+            if message.arbitration_id == PID_REPLY and message.data[2] == TEST3:
+                test3 = message.data[3]
+
+            if message.arbitration_id == PID_REPLY and message.data[2] == TEST4:
+                test4 = message.data[3]
+
+            if message.arbitration_id == PID_REPLY and message.data[2] == TEST5:
+                test5 = message.data[3]
+
+            if message.arbitration_id == PID_REPLY and message.data[2] == TEST6:
+                test6 = message.data[3]
+
+            if message.arbitration_id == PID_REPLY and message.data[2] == TEST7:
+                test7 = message.data[3]
+
+        c += '{0:d},{1:d},{2:d},{3:d},{4:d},{5:d},{6:d},{7:d},{8:d},{9:d},{10:d},{11:d}'.format(temperature, rpm, speed, throttle, fuel, test1, test2, test3, test4, test5, test6, test7)
         print('\r {} '.format(c))
         print(c, file=outfile)  # Save data to file
         count += 1
@@ -152,6 +225,7 @@ except KeyboardInterrupt:
     os.system("sudo /sbin/ip link set can0 down")
     print('\n\rKeyboard interrtupt')
 
+time.sleep(0.05)
 if input("if you want to shutdown the Raspberry Pi press 's': ") == 's':
     os.system("sudo shutdown -h now")
 print(f'See you again {user_name}')
