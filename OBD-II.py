@@ -22,7 +22,7 @@ MAF_SENSOR = 0x10
 O2_VOLTAGE = 0x14
 THROTTLE = 0x11
 FUEL = 0x2F
-TEST1 = input("Please enter the first test PID: ")
+TEST1 = 0x50
 print(f"Test1 PID: {TEST1}")
 
 PID_REQUEST = 0x7DF
@@ -92,8 +92,8 @@ def can_tx_task():  # Transmit thread
         time.sleep(0.05)
 
         # Sent a FUEL level request
-        msg = can.Message(arbitration_id=PID_REQUEST, data=[0x02, 0x01, TEST1, 0x00, 0x00, 0x00, 0x00, 0x00],
-                          is_extended_id=False)
+        msg = can.Message(arbitration_id=PID_REQUEST, data=[0x02, 0x01, TEST1, 0x00, 0x00, 0x00, 0x00, 0x00], is_extended_id=False)
+
         bus.send(msg)
         time.sleep(0.05)
 
