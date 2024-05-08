@@ -7,6 +7,16 @@ import os
 import queue
 from threading import Thread
 import datetime
+from GPS import speed_limit
+import threading
+import firebase_admin
+from firebase_admin import credentials
+from firebase_admin import firestore
+
+cred = credentials.Certificate(
+    "/home/segev/Project/OBDII-Data/car-driver-bc91f-firebase-adminsdk-xhkyn-214c09b623.json")
+firebase_admin.initialize_app(cred)
+db = firestore.client()
 
 led = 22
 GPIO.setmode(GPIO.BCM)
@@ -23,7 +33,6 @@ O2_VOLTAGE = 0x14
 THROTTLE = 0x11
 FUEL = 0x2F
 TEST1 = 0x50
-print(f"Test1 PID: {TEST1}")
 
 PID_REQUEST = 0x7DF
 PID_REPLY = 0x7E8
@@ -49,6 +58,28 @@ except OSError:
     print('Cannot find PiCAN board.')
     GPIO.output(led, False)
     exit()
+
+
+def upload_to_firestore(data):
+    db.collection(user_name).add(data)
+
+
+def update_speed_limit():
+    global speedLimit
+    try:
+        while True:
+            speedLimit = speed_limit()
+            if speedLimit is None:
+                speedLimit = 0
+            time.sleep(10)  # Check for speed limit every 10 seconds
+    except KeyboardInterrupt:
+        print("Speed limit update interrupted")
+
+
+# Start the speed limit update thread
+speed_limit_thread = threading.Thread(target=update_speed_limit)
+speed_limit_thread.daemon = True  # This will allow the thread to terminate when the main program exits
+speed_limit_thread.start()
 
 
 def can_rx_task():  # Receive thread
@@ -92,7 +123,8 @@ def can_tx_task():  # Transmit thread
         time.sleep(0.05)
 
         # Sent a FUEL level request
-        msg = can.Message(arbitration_id=PID_REQUEST, data=[0x02, 0x01, TEST1, 0x00, 0x00, 0x00, 0x00, 0x00], is_extended_id=False)
+        msg = can.Message(arbitration_id=PID_REQUEST, data=[0x02, 0x01, TEST1, 0x00, 0x00, 0x00, 0x00, 0x00],
+                          is_extended_id=False)
 
         bus.send(msg)
         time.sleep(0.05)
@@ -115,6 +147,7 @@ fuel = 0
 test1 = 0
 c = ''
 count = 0
+speedLimit = 0
 
 # Main loop
 try:
@@ -142,23 +175,52 @@ try:
 
             if message.arbitration_id == PID_REPLY and message.data[2] == FUEL:
                 fuel = round((100 / 255) * message.data[3])
-            #     ///////////////////////////////////////////////
-            if message.arbitration_id == PID_REPLY and message.data[2] == TEST1:
-                test1 = message.data[3]
 
-        c += '{0:d},{1:d},{2:d},{3:d},{4:d},{5:d}'.format(temperature, rpm, speed, throttle, fuel, test1)
+            if speedLimit is None:
+                speedLimit = 0
+            speedLimit = int(speedLimit)
+
+        c += '{0:d},{1:d},{2:d},{3:d},{4:d},{5:d}'.format(temperature, rpm, speed, throttle, fuel, speedLimit)
         print('\r {} '.format(c))
         print(c, file=outfile)  # Save data to file
         count += 1
 
-
-
 except KeyboardInterrupt:
     # Catch keyboard interrupt
     GPIO.output(led, False)
-    outfile.close()  # Close logger file
+    # Close the file before processing its content
+    outfile.close()
+
+    # Open the file from the beginning in read mode
+    outfile = open(outfile.name, 'r')
+    for line in outfile:
+        data = line.strip().split(',')
+        if len(data) == 8:  # Assuming each line has 8 fields
+            timestamp = data[1]
+            temperature = int(data[2])
+            rpm = int(data[3])
+            speed = int(data[4])
+            throttle = int(data[5])
+            fuel = int(data[6])
+            speed_limitt = int(data[7])
+
+            # Upload data to Firestore
+            upload_to_firestore({
+                'timestamp': timestamp,
+                'temperature': temperature,
+                'rpm': rpm,
+                'speed': speed,
+                'throttle': throttle,
+                'fuel': fuel,
+                'speed_limit': speed_limitt
+            })
+
+    # Clean up
     os.system("sudo /sbin/ip link set can0 down")
-    print('\n\rKeyboard interrtupt')
+    print('\n\rKeyboard interrupt')
+
+# Remove the file after processing
+outfile.close()
 
 time.sleep(0.05)
 if input("if you want to shutdown the Raspberry Pi press 's': ") == 's':

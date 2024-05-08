@@ -1,6 +1,9 @@
 import requests
+from gps import *
+import time
 
-
+last_speed_limit = 0
+last_speed_limit_time = 0
 def get_speed_limit(latitude, longitude):
     overpass_url = "http://overpass-api.de/api/interpreter"
     overpass_query = f"""
@@ -27,11 +30,42 @@ def get_speed_limit(latitude, longitude):
         return None
 
 
-# Example usage:
-latitude = 37.773972
-longitude = -122.431297
-speed_limit = get_speed_limit(latitude, longitude)
-if speed_limit is not None:
-    print("Speed Limit:", speed_limit)
-else:
-    print("Unable to retrieve speed limit.")
+running = True
+
+
+def getPositionData(gps):
+    nx = gpsd.next()
+    if nx['class'] == 'TPV':
+        latitude = getattr(nx, 'lat', "Unknown")
+        longitude = getattr(nx, 'lon', "Unknown")
+        return speedLim(latitude, longitude)
+
+
+def speedLim(latitude, longitude):
+    speed_limit = get_speed_limit(latitude, longitude)
+    if speed_limit is not None:
+        return speed_limit
+    else:
+        return 0
+
+
+gpsd = gps(mode=WATCH_ENABLE | WATCH_NEWSTYLE)
+
+
+def speed_limit():
+    global last_speed_limit, last_speed_limit_time
+
+    try:
+        current_time = time.time()
+        # Check if it's been more than 10 seconds since last speed limit update
+        if current_time - last_speed_limit_time > 10:
+            new_speed_limit = getPositionData(gpsd)
+            if new_speed_limit is not None:
+                last_speed_limit = new_speed_limit
+                last_speed_limit_time = current_time
+            return last_speed_limit
+        else:
+            return last_speed_limit
+    except KeyboardInterrupt:
+        print("Applications closed!")
+
