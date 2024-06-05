@@ -38,6 +38,7 @@ PID_REQUEST = 0x7DF
 PID_REPLY = 0x7E8
 
 user_name = input("Please enter your name(only first name): ")
+car_type = input("please enter your car type: ")
 print(f"Hello {user_name}, Have a nice Drive!")
 
 outfile = open(f'{user_name}.txt', 'a')
@@ -60,8 +61,19 @@ except OSError:
     exit()
 
 
-def upload_to_firestore(data):
-    db.collection(user_name).add(data)
+cars_ref = db.collection('Cars').add({
+    'car_type': car_type,
+})
+cars_id = cars_ref[1].id
+
+
+drivers_ref = db.collection('Drivers').add({
+    'driver_name': user_name,
+    'cars_id': cars_id
+})
+drivers_id = drivers_ref[1].id
+def upload_drive_to_firestore(data):
+    db.collection('Drives').add(data)
 
 
 def update_speed_limit():
@@ -171,7 +183,7 @@ try:
                 speed = message.data[3]  # Convert data to km
 
             if message.arbitration_id == PID_REPLY and message.data[2] == THROTTLE:
-                throttle = round((message.data[3] * 100) / 255)  # Conver data to %
+                throttle = round((message.data[3] * 100) / 255)  # Convert data to %
 
             if message.arbitration_id == PID_REPLY and message.data[2] == FUEL:
                 fuel = round((100 / 255) * message.data[3])
@@ -205,14 +217,16 @@ except KeyboardInterrupt:
             speed_limitt = int(data[7])
 
             # Upload data to Firestore
-            upload_to_firestore({
+            upload_drive_to_firestore({
                 'timestamp': timestamp,
                 'temperature': temperature,
                 'rpm': rpm,
                 'speed': speed,
                 'throttle': throttle,
                 'fuel': fuel,
-                'speed_limit': speed_limitt
+                'speed_limit': speed_limitt,
+                'cars_id': cars_id,
+                'drivers_id': drivers_id
             })
 
     # Clean up
