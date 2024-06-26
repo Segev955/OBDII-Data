@@ -18,6 +18,9 @@ cred = credentials.Certificate(
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
+# Retrieve driver name and car type from environment variables
+user_name = os.getenv('DRIVER_NAME', 'Unknown')
+car_type = os.getenv('CAR_TYPE', 'Unknown')
 led = 22
 GPIO.setmode(GPIO.BCM)
 GPIO.setwarnings(False)
@@ -36,9 +39,9 @@ TEST1 = 0x50
 
 PID_REQUEST = 0x7DF
 PID_REPLY = 0x7E8
-
-user_name = input("Please enter your name(only first name): ")
-car_type = input("please enter your car type: ")
+#
+# user_name = input("Please enter your name(only first name): ")
+# car_type = input("please enter your car type: ")
 print(f"Hello {user_name}, Have a nice Drive!")
 
 outfile = open(f'{user_name}.txt', 'a')
