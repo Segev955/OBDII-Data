@@ -4,12 +4,20 @@ import firebase_admin
 from firebase_admin import credentials, db
 
 # Initialize Firebase Admin SDK
-cred = credentials.Certificate(
-    "/home/segev/Project/OBDII-Data/car-driver-bc91f-firebase-adminsdk-xhkyn-214c09b623.json")
-firebase_admin.initialize_app(cred, {
-    'databaseURL': 'https://car-driver-bc91f-default-rtdb.asia-southeast1.firebasedatabase.app/'
-})
+while True:
+    try:
+        cred = credentials.Certificate("/home/segev/Project/OBDII-Data/car-driver-bc91f-firebase-adminsdk-xhkyn-214c09b623.json")
+        firebase_admin.initialize_app(cred, {
+            'databaseURL': 'https://car-driver-bc91f-default-rtdb.asia-southeast1.firebasedatabase.app/'
+        })
+        print("Firebase initialized successfully.")
+        break
+    except Exception as e:
+        print(f"Error initializing Firebase: {e}. Retrying in 5 seconds...")
+        time.sleep(5)
 
+def update_status(status):
+    db.reference('status').set(status)
 def run_data_collection_script(name, car_type):
     print(f"Start command received. Driver: {name}, Car Type: {car_type}. Running data collection script...")
     env = os.environ.copy()
@@ -17,9 +25,11 @@ def run_data_collection_script(name, car_type):
     env["CAR_TYPE"] = car_type
 
     try:
-        process = subprocess.Popen(["python3", "/home/segev/Project/OBDII-Data/OBD-II.py"], env=env)
+        subprocess.Popen(["python3", "/home/segev/Project/OBDII-Data/OBD-II.py"], env=env)
+        update_status("Started successfully")
         print("Script started successfully.")
     except Exception as e:
+        update_status(f"Error starting script: {e}")
         print(f"Error running script: {e}")
 
 
@@ -27,12 +37,15 @@ def stop_data_collection_script():
     print("Stop command received. Sending SIGINT to data collection script...")
     try:
         subprocess.run(["pkill", "-SIGINT", "-f", "OBD-II.py"], check=True)
+        update_status("Stopped successfully")
         print("Script stopped successfully.")
     except subprocess.CalledProcessError as e:
+        update_status(f"Error stopping script: {e}")
         print(f"Error stopping script: {e}")
 
 def shutdown_raspberry():
     print("Shutdown command received. Shutting down the Raspberry Pi...")
+    update_status("Shutting down")
     subprocess.run(["sudo", "shutdown", "-h", "now"])
 
 
@@ -57,4 +70,7 @@ def listener(event):
 
 
 print("Firebase Listener started. Waiting for commands...")
-db.reference('commands').listen(listener)
+try:
+    db.reference('commands').listen(listener)
+except Exception as e:
+    print(f"Error setting up Firebase listener: {e}")
