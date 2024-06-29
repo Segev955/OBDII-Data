@@ -1,8 +1,10 @@
 import os
+import time
 import subprocess
 import firebase_admin
 from firebase_admin import credentials, db
 
+time.sleep(5)
 # Initialize Firebase Admin SDK
 while True:
     try:
