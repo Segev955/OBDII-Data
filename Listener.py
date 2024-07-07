@@ -71,8 +71,12 @@ def listener(event):
         shutdown_raspberry()
 
 
-print("Firebase Listener started. Waiting for commands...")
-try:
-    db.reference('commands').listen(listener)
-except Exception as e:
-    print(f"Error setting up Firebase listener: {e}")
+success = False
+while not success:
+    print("Attempting to set up Firebase listener...")
+    try:
+        db.reference('commands').listen(listener)
+        success = True
+    except Exception as e:
+        print(f"Error setting up Firebase listener: {e}. Retrying in 5 seconds...")
+        time.sleep(5)
