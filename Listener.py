@@ -76,6 +76,7 @@ while not success:
     print("Attempting to set up Firebase listener...")
     try:
         db.reference('commands').listen(listener)
+        update_status("Ready..")
         success = True
     except Exception as e:
         print(f"Error setting up Firebase listener: {e}. Retrying in 5 seconds...")
