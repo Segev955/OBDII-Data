@@ -12,6 +12,7 @@ import threading
 import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import firestore
+import uuid
 
 cred = credentials.Certificate(
     "/home/segev/Project/OBDII-Data/car-driver-bc91f-firebase-adminsdk-xhkyn-214c09b623.json")
@@ -39,12 +40,11 @@ TEST1 = 0x50
 
 PID_REQUEST = 0x7DF
 PID_REPLY = 0x7E8
-#
-# user_name = input("Please enter your name(only first name): ")
-# car_type = input("please enter your car type: ")
+
 print(f"Hello {user_name}, Have a nice Drive!")
 
-outfile = open(f'{user_name}.txt', 'a')
+drive_id = str(uuid.uuid4())  # Generate a unique ID for each drive
+outfile = open(f'{user_name}_{drive_id}.txt', 'a')
 
 print('\n\rCAN Rx test')
 print('Bring up CAN0....')
@@ -75,8 +75,9 @@ drivers_ref = db.collection('Drivers').add({
     'cars_id': cars_id
 })
 drivers_id = drivers_ref[1].id
-def upload_drive_to_firestore(data):
-    db.collection('Drives').add(data)
+
+def upload_drive_to_firestore(data, drive_id):
+    db.collection('Drives').document(drive_id).set(data)
 
 
 def update_speed_limit():
@@ -227,19 +228,4 @@ except KeyboardInterrupt:
                 'speed': speed,
                 'throttle': throttle,
                 'fuel': fuel,
-                'speed_limit': speed_limitt,
-                'cars_id': cars_id,
-                'drivers_id': drivers_id
-            })
-
-    # Clean up
-    os.system("sudo /sbin/ip link set can0 down")
-    print('\n\rKeyboard interrupt')
-
-# Remove the file after processing
-outfile.close()
-
-time.sleep(0.05)
-if input("if you want to shutdown the Raspberry Pi press 's': ") == 's':
-    os.system("sudo shutdown -h now")
-print(f'See you again {user_name}')
+                'speed_limit':
