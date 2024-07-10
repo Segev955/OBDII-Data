@@ -228,4 +228,19 @@ except KeyboardInterrupt:
                 'speed': speed,
                 'throttle': throttle,
                 'fuel': fuel,
-                'speed_limit':
+                'speed_limit': speed_limitt,
+                'cars_id': cars_id,
+                'drivers_id': drivers_id
+            }, drive_id)
+
+    # Clean up
+    os.system("sudo /sbin/ip link set can0 down")
+    print('\n\rKeyboard interrupt')
+
+# Remove the file after processing
+outfile.close()
+
+time.sleep(0.05)
+if input("if you want to shutdown the Raspberry Pi press 's': ") == 's':
+    os.system("sudo shutdown -h now")
+print(f'See you again {user_name}')
