@@ -10,13 +10,17 @@ import datetime
 from GPS import speed_limit
 import threading
 import firebase_admin
-from firebase_admin import credentials
-from firebase_admin import firestore
+from firebase_admin import credentials, firestore, storage, db as realtime_db
 
+# Initialize Firebase Admin SDK
 cred = credentials.Certificate(
     "/home/segev/Project/OBDII-Data/car-driver-bc91f-firebase-adminsdk-xhkyn-214c09b623.json")
-firebase_admin.initialize_app(cred)
+firebase_admin.initialize_app(cred, {
+    'storageBucket': 'car-driver-bc91f.appspot.com',
+    'databaseURL': 'https://car-driver-bc91f-default-rtdb.asia-southeast1.firebasedatabase.app/'
+})
 db = firestore.client()
+bucket = storage.bucket()
 
 # Retrieve driver name and car type from environment variables
 user_name = os.getenv('DRIVER_NAME', 'Unknown')
@@ -39,12 +43,13 @@ TEST1 = 0x50
 
 PID_REQUEST = 0x7DF
 PID_REPLY = 0x7E8
-#
-# user_name = input("Please enter your name(only first name): ")
-# car_type = input("please enter your car type: ")
+
 print(f"Hello {user_name}, Have a nice Drive!")
 
-outfile = open(f'{user_name}.txt', 'a')
+current_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+
+outfile_path = f'{user_name}_{current_time}.txt'
+outfile = open(outfile_path, 'a')
 
 print('\n\rCAN Rx test')
 print('Bring up CAN0....')
@@ -63,20 +68,16 @@ except OSError:
     GPIO.output(led, False)
     exit()
 
-
 cars_ref = db.collection('Cars').add({
     'car_type': car_type,
 })
 cars_id = cars_ref[1].id
-
 
 drivers_ref = db.collection('Drivers').add({
     'driver_name': user_name,
     'cars_id': cars_id
 })
 drivers_id = drivers_ref[1].id
-def upload_drive_to_firestore(data):
-    db.collection('Drives').add(data)
 
 
 def update_speed_limit():
@@ -107,40 +108,39 @@ def can_rx_task():  # Receive thread
 def can_tx_task():  # Transmit thread
     while True:
         GPIO.output(led, True)
-        # Sent a Engine coolant temperature request
+        # Send a Engine coolant temperature request
         msg = can.Message(arbitration_id=PID_REQUEST,
                           data=[0x02, 0x01, ENGINE_COOLANT_TEMP, 0x00, 0x00, 0x00, 0x00, 0x00], is_extended_id=False)
         bus.send(msg)
         time.sleep(0.05)
 
-        # Sent a Engine RPM request
+        # Send a Engine RPM request
         msg = can.Message(arbitration_id=PID_REQUEST, data=[0x02, 0x01, ENGINE_RPM, 0x00, 0x00, 0x00, 0x00, 0x00],
                           is_extended_id=False)
         bus.send(msg)
         time.sleep(0.05)
 
-        # Sent a Vehicle speed  request
+        # Send a Vehicle speed request
         msg = can.Message(arbitration_id=PID_REQUEST, data=[0x02, 0x01, VEHICLE_SPEED, 0x00, 0x00, 0x00, 0x00, 0x00],
                           is_extended_id=False)
         bus.send(msg)
         time.sleep(0.05)
 
-        # Sent a Throttle position request
+        # Send a Throttle position request
         msg = can.Message(arbitration_id=PID_REQUEST, data=[0x02, 0x01, THROTTLE, 0x00, 0x00, 0x00, 0x00, 0x00],
                           is_extended_id=False)
         bus.send(msg)
         time.sleep(0.05)
 
-        # Sent a FUEL level request
+        # Send a FUEL level request
         msg = can.Message(arbitration_id=PID_REQUEST, data=[0x02, 0x01, FUEL, 0x00, 0x00, 0x00, 0x00, 0x00],
                           is_extended_id=False)
         bus.send(msg)
         time.sleep(0.05)
 
-        # Sent a FUEL level request
+        # Send a TEST1 level request
         msg = can.Message(arbitration_id=PID_REQUEST, data=[0x02, 0x01, TEST1, 0x00, 0x00, 0x00, 0x00, 0x00],
                           is_extended_id=False)
-
         bus.send(msg)
         time.sleep(0.05)
 
@@ -167,9 +167,8 @@ speedLimit = 0
 # Main loop
 try:
     while True:
-
         for i in range(4):
-            while (q.empty() == True):  # Wait until there is a message
+            while q.empty():  # Wait until there is a message
                 pass
             message = q.get()
             dt_object = datetime.datetime.fromtimestamp(message.timestamp)
@@ -183,7 +182,7 @@ try:
                 rpm = round(((message.data[3] * 256) + message.data[4]) / 4)  # Convert data to RPM
 
             if message.arbitration_id == PID_REPLY and message.data[2] == VEHICLE_SPEED:
-                speed = message.data[3]  # Convert data to km
+                speed = message.data[3]  # Convert data to km/h
 
             if message.arbitration_id == PID_REPLY and message.data[2] == THROTTLE:
                 throttle = round((message.data[3] * 100) / 255)  # Convert data to %
@@ -196,7 +195,7 @@ try:
             speedLimit = int(speedLimit)
 
         c += '{0:d},{1:d},{2:d},{3:d},{4:d},{5:d}'.format(temperature, rpm, speed, throttle, fuel, speedLimit)
-        print('\r {} '.format(c))
+        print(f'\r {c} ')
         print(c, file=outfile)  # Save data to file
         count += 1
 
@@ -206,31 +205,26 @@ except KeyboardInterrupt:
     # Close the file before processing its content
     outfile.close()
 
-    # Open the file from the beginning in read mode
-    outfile = open(outfile.name, 'r')
-    for line in outfile:
-        data = line.strip().split(',')
-        if len(data) == 8:  # Assuming each line has 8 fields
-            timestamp = data[1]
-            temperature = int(data[2])
-            rpm = int(data[3])
-            speed = int(data[4])
-            throttle = int(data[5])
-            fuel = int(data[6])
-            speed_limitt = int(data[7])
 
-            # Upload data to Firestore
-            upload_drive_to_firestore({
-                'timestamp': timestamp,
-                'temperature': temperature,
-                'rpm': rpm,
-                'speed': speed,
-                'throttle': throttle,
-                'fuel': fuel,
-                'speed_limit': speed_limitt,
-                'cars_id': cars_id,
-                'drivers_id': drivers_id
-            })
+    # Upload the file to Firebase Storage
+    def upload_file_to_storage(file_path, collection_name, document_id):
+        blob = bucket.blob(f'drives/{os.path.basename(file_path)}')
+        blob.upload_from_filename(file_path)
+        blob.make_public()
+
+        doc_ref = db.collection(collection_name).document(document_id)
+        doc_ref.set({
+            'file_name': os.path.basename(file_path),
+            'file_url': blob.public_url
+        })
+        print(f"File {file_path} uploaded to Firebase Storage and reference saved to Firestore.")
+        realtime_db.reference('status').set('Upload complete')
+
+
+
+    # Upload the file to Firebase Storage and save reference to Firestore
+    document_id = f'{user_name}_{int(time.time())}'
+    upload_file_to_storage(outfile_path, 'Drives', document_id)
 
     # Clean up
     os.system("sudo /sbin/ip link set can0 down")
@@ -238,8 +232,4 @@ except KeyboardInterrupt:
 
 # Remove the file after processing
 outfile.close()
-
-time.sleep(0.05)
-if input("if you want to shutdown the Raspberry Pi press 's': ") == 's':
-    os.system("sudo shutdown -h now")
 print(f'See you again {user_name}')

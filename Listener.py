@@ -4,7 +4,6 @@ import subprocess
 import firebase_admin
 from firebase_admin import credentials, db
 
-time.sleep(5)
 # Initialize Firebase Admin SDK
 while True:
     try:
@@ -16,7 +15,7 @@ while True:
         break
     except Exception as e:
         print(f"Error initializing Firebase: {e}. Retrying in 5 seconds...")
-        time.sleep(5)
+        time.sleep(1)
 
 def update_status(status):
     db.reference('status').set(status)
