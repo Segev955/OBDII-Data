@@ -2,8 +2,10 @@ import requests
 from gps import *
 import time
 
+GPSError = False
 last_speed_limit = 0
 last_speed_limit_time = 0
+
 def get_speed_limit(latitude, longitude):
     overpass_url = "http://overpass-api.de/api/interpreter"
     overpass_query = f"""
@@ -29,17 +31,16 @@ def get_speed_limit(latitude, longitude):
         print("Error:", e)
         return None
 
-
-running = True
-
-
-def getPositionData(gps):
-    nx = gpsd.next()
-    if nx['class'] == 'TPV':
-        latitude = getattr(nx, 'lat', "Unknown")
-        longitude = getattr(nx, 'lon', "Unknown")
-        return speedLim(latitude, longitude)
-
+def getPositionData(gpsd):
+    try:
+        nx = gpsd.next()
+        if nx['class'] == 'TPV':
+            latitude = getattr(nx, 'lat', "Unknown")
+            longitude = getattr(nx, 'lon', "Unknown")
+            return speedLim(latitude, longitude)
+    except Exception as e:
+        print(f"Error getting position data: {e}")
+        return None
 
 def speedLim(latitude, longitude):
     speed_limit = get_speed_limit(latitude, longitude)
@@ -48,12 +49,18 @@ def speedLim(latitude, longitude):
     else:
         return 0
 
-
-gpsd = gps(mode=WATCH_ENABLE | WATCH_NEWSTYLE)
-
+try:
+    gpsd = gps(mode=WATCH_ENABLE | WATCH_NEWSTYLE)
+except Exception as e:
+    print(f"Error initializing GPS: {e}")
+    GPSError = True
+    gpsd = None
 
 def speed_limit():
     global last_speed_limit, last_speed_limit_time
+
+    if gpsd is None:
+        return 0
 
     try:
         current_time = time.time()
@@ -68,4 +75,7 @@ def speed_limit():
             return last_speed_limit
     except KeyboardInterrupt:
         print("Applications closed!")
-
+        return 0
+    except Exception as e:
+        print(f"Error in speed_limit function: {e}")
+        return 0

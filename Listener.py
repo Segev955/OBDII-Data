@@ -4,6 +4,7 @@ import subprocess
 import firebase_admin
 from firebase_admin import credentials, db
 
+
 # Initialize Firebase Admin SDK
 while True:
     try:
@@ -19,14 +20,14 @@ while True:
 
 def update_status(status):
     db.reference('status').set(status)
-def run_data_collection_script(name, car_type):
-    print(f"Start command received. Driver: {name}, Car Type: {car_type}. Running data collection script...")
+def run_data_collection_script(uid, car_type):
+    print(f"Start command received. Driver: {uid}, Car Type: {car_type}. Running data collection script...")
     env = os.environ.copy()
-    env["DRIVER_NAME"] = name
+    env["DRIVER_UID"] = uid
     env["CAR_TYPE"] = car_type
 
     try:
-        subprocess.Popen(["python3", "/home/segev/Project/OBDII-Data/OBD-II.py"], env=env)
+        subprocess.Popen(["python3", "/home/segev/Project/OBDII-Data/OBD_II.py"], env=env)
         update_status("Started successfully")
         print("Script started successfully.")
     except Exception as e:
@@ -37,11 +38,11 @@ def run_data_collection_script(name, car_type):
 def stop_data_collection_script():
     print("Stop command received. Sending SIGINT to data collection script...")
     try:
-        subprocess.run(["pkill", "-SIGINT", "-f", "OBD-II.py"], check=True)
+        subprocess.run(["pkill", "-SIGINT", "-f", "OBD_II.py"], check=True)
         update_status("Stopped successfully")
         print("Script stopped successfully.")
     except subprocess.CalledProcessError as e:
-        update_status(f"Error stopping script: {e}")
+        update_status(f"Error stopping script: Noting to stop")
         print(f"Error stopping script: {e}")
 
 def shutdown_raspberry():
@@ -59,9 +60,9 @@ def listener(event):
     if event.path == "/":
         if event.data.get("start"):
             print("Start command detected")
-            name = event.data.get("name", "Unknown")
+            uid = event.data.get("uid", "Unknown")
             car_type = event.data.get("carType", "Unknown")
-            run_data_collection_script(name, car_type)
+            run_data_collection_script(uid, car_type)
     elif event.path == "/stop" and event.data:
         print("Stop command detected")
         stop_data_collection_script()
