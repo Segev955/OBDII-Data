@@ -12,8 +12,8 @@ def entrylistener(event):
     if event.data is not None:
         print("Event path:", event.path)
         print("Event data:", event.data)
-        if event.path == "/" and "userId" in event.data and "key" in event.data:
-            uid = event.data.get("userId", "Unknown")
+        if event.path == "/" and "user_id" in event.data and "key" in event.data:
+            uid = event.data.get("user_id", "Unknown")
             key = event.data.get("key", "Nothing")
 
             if obd_device.connect(uid,key):
