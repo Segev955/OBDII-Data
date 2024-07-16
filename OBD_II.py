@@ -12,6 +12,8 @@ import csv
 import threading
 import firebase_admin
 from firebase_admin import credentials, firestore, storage, db as realtime_db
+from Obd_class import *
+
 
 
 # Initialize Firebase Admin SDK
@@ -24,13 +26,12 @@ firebase_admin.initialize_app(cred, {
 db = firestore.client()
 bucket = storage.bucket()
 
-def update_status(status):
-    realtime_db.reference('status').set(status)
+obd_device = Obd()
 
 from GPS import speed_limit, GPSError
 
 if GPSError:
-    update_status("GPS Error")
+    obd_device.updateStatus("GPS Error")
     sys.exit()
 
 
@@ -185,6 +186,7 @@ try:
                       'acceleration']
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
+        obd_device.updateStatus("Driving..")
 
         while True:
             for i in range(4):
@@ -234,7 +236,7 @@ try:
                     'speedLimit': speedLimit,
                     'acceleration': acceleration
                 }
-
+                print(data)
                 writer.writerow(data)
                 count += 1
 
@@ -243,6 +245,7 @@ except KeyboardInterrupt:
     GPIO.output(led, False)
     # Close the file before processing its content
     csvfile.close()
+    obd_device.updateStatus("Error")
 
 
     # Upload the file to Firebase Storage
@@ -257,7 +260,7 @@ except KeyboardInterrupt:
             'file_url': blob.public_url
         })
         print(f"File {file_path} uploaded to Firebase Storage and reference saved to Firestore.")
-        update_status('Upload complete')
+        obd_device.updateStatus('Upload complete')
 
 
     # Upload the file to Firebase Storage and save reference to Firestore
