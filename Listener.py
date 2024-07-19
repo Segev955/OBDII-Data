@@ -52,7 +52,15 @@ def drivelistener(event):
 
 if __name__ == '__main__':
     atexit.register(on_exit)
-    obd_device = Obd()
+    if len(sys.argv) >= 4:
+        id_arg = sys.argv[1]
+        name_arg = sys.argv[2]
+        key_arg = sys.argv[3]
+        obd_device = Obd(id=id_arg, name=name_arg, key=key_arg)
+        print(f"Details set successfully: id={id_arg}, name={name_arg}, key={key_arg}")
+    else:
+        obd_device = Obd()
+        print(f"Using default details")
 
     # Initialize Firebase Admin SDK
     while True:

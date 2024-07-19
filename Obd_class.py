@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import subprocess
 import firebase_admin
@@ -28,7 +29,6 @@ class Obd:
         self.is_alive = Obd.is_alive
         self.is_available = Obd.is_available
         self.is_busy = Obd.is_busy
-
 
     def setAlive(self):
         self.is_alive =True
@@ -154,3 +154,4 @@ class Obd:
             except Exception as e:
                 self.updateStatus(f"Error stopping script: {e}")
                 print(f"Error stopping script (General Exception): {e}")
+
