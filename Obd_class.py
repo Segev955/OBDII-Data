@@ -7,7 +7,6 @@ import json
 import subprocess
 from firebase_admin import credentials, db
 
-
 ID = '4567'
 NAME = "fake4567"
 KEY = '4567'
@@ -16,11 +15,14 @@ OBD_REFERENCE = 'Obd'
 ENTRIES_REFERENCE = 'ObdEntries'
 USERS_REFERENCE = 'Users'
 
+
 class Obd:
     is_alive = False
     is_available = False
     is_busy = False
-    def __init__(self, id = ID,name = NAME, key = KEY):
+    error_msg = ''
+
+    def __init__(self, id=ID, name=NAME, key=KEY):
         self.id = id
         self.name = name
         self.key = key
@@ -31,21 +33,23 @@ class Obd:
         self.is_busy = Obd.is_busy
 
     def setAlive(self):
-        self.is_alive =True
+        self.is_alive = True
         self.updateData()
 
     def isConnected(self):
         return self.connected_uid != ''
 
-    def updateStatus(self, status = 'available'):
+    def updateStatus(self, status='available'):
         self.status = status
         self.updateData()
 
-    def updateUserStatus(self, status , uid ):
-        if uid is not None and uid !='':
+    def updateError(self, error_msg):
+        self.error_msg = error_msg
+
+    def updateUserStatus(self, status, uid):
+        if uid is not None and uid != '':
             print(f'setting status <{status}> to user <{uid}>')
             db.reference(USERS_REFERENCE).child(uid).child('status').set(f'OBD {self.name}: {status}')
-
 
     def connect(self, uid, key):
         db.reference(ENTRIES_REFERENCE).child(self.id).delete()
@@ -71,7 +75,6 @@ class Obd:
             print(f"User disconnected!")
         self.startUp()
 
-
     def startUp(self):
         self.is_alive = True
         self.is_available = True
@@ -94,7 +97,6 @@ class Obd:
         except Exception as e:
             print(f"Error, no OBD device connected: {e}.")
 
-
     def updateData(self):
         dict = {
             'id': self.id,
@@ -110,8 +112,6 @@ class Obd:
         if self.isConnected():
             db.reference(USERS_REFERENCE).child(self.connected_uid).child('connected_obd').set(self.id)
 
-
-
     def startDriving(self):
         if not self.is_busy:
             self.is_busy = True
@@ -122,15 +122,17 @@ class Obd:
                 car_type_snapshot = db.reference(USERS_REFERENCE).child(uid).child('carType').get()
                 if car_type_snapshot:
                     car_type = car_type_snapshot
-                    print(f"Start command received. Driver: {uid}, Car Type: {car_type}. Running data collection script...")
+                    print(
+                        f"Start command received. Driver: {uid}, Car Type: {car_type}. Running data collection script...")
                     env = os.environ.copy()
                     env["DRIVER_UID"] = uid
                     env["CAR_TYPE"] = car_type
 
                     try:
-                        subprocess.Popen(["python3", f"{os.getcwd()}/OBD_II.py"], env=env)
-                        self.updateStatus("driving")
+                        subprocess.Popen(["python", f"{os.getcwd()}/OBD_II.py"], env=env)
                         print("Script started successfully.")
+                        if self.error_msg is "Error":
+                            print(f"Error message: {self.error_msg}")
                     except Exception as e:
                         self.updateStatus(f"Error starting script: {e}")
                         print(f"Error running script: {e}")
@@ -154,4 +156,3 @@ class Obd:
             except Exception as e:
                 self.updateStatus(f"Error stopping script: {e}")
                 print(f"Error stopping script (General Exception): {e}")
-

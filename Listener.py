@@ -2,6 +2,7 @@ from Obd_class import *
 import atexit
 import threading
 
+obd_device = Obd()
 def on_exit():
     obd_device.shutDown()
     print("The program is exiting. Shutting down...")
