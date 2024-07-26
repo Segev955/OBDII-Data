@@ -1,12 +1,6 @@
-from Obd_class import *
+from Driving import *
 import atexit
 import threading
-
-def on_exit():
-    obd_device.shutDown()
-    print("The program is exiting. Shutting down...")
-
-
 
 def entrylistener(event):
     if event.data is not None:
@@ -16,10 +10,8 @@ def entrylistener(event):
             uid = event.data.get("user_id", "Unknown")
             key = event.data.get("key", "Nothing")
 
-            if obd_device.connect(uid,key):
-                db.reference(OBD_REFERENCE).child(obd_device.id).listen(drivelistener)
-
-
+            if driving.getOBD().connect(uid, key):
+                db.reference(OBD_REFERENCE).child(driving.getOBD().id).listen(drivelistener)
 
 def drivelistener(event):
     if event.data is not None:
@@ -27,7 +19,7 @@ def drivelistener(event):
             status = event.data.get("status", "no_status")
             alive = event.data.get("is_alive", False)
             if not alive:
-                obd_device.setAlive()
+                driving.getOBD().setAlive()
             print(f"OBD status: <{status}>")
         else:
             print("Event path:", event.path)
@@ -37,52 +29,37 @@ def drivelistener(event):
                 if isinstance(event.data, str):
                     status = event.data
                     if status == 'start':
-                        obd_device.startDriving()
+                        driving_thread = threading.Thread(target=driving.startDriving)
+                        driving_thread.start()
                     elif status == 'stop':
-                        obd_device.stopDriving()
-                    elif status == 'disconnected':
-                        obd_device.disconnect()
-                        db.reference(ENTRIES_REFERENCE).child(obd_device.id).listen(entrylistener)
+                        print('stoppppp')
+                        driving.stopDriving()
+                    elif status == 'Disconnect':
+                        driving.getOBD().disconnect()
+                        db.reference(ENTRIES_REFERENCE).child(driving.getOBD().id).listen(entrylistener)
                     elif status == 'Shutting down':
-                        obd_device.shutDown()
+                        driving.getOBD().shutDown()
                     else:
                         print(f"got unknown status: <{status}>")
 
-
-
 if __name__ == '__main__':
-    atexit.register(on_exit)
     if len(sys.argv) >= 4:
         id_arg = sys.argv[1]
         name_arg = sys.argv[2]
         key_arg = sys.argv[3]
-        obd_device = Obd(id=id_arg, name=name_arg, key=key_arg)
+        obd = Obd(id=id_arg, name=name_arg, key=key_arg)
         print(f"Details set successfully: id={id_arg}, name={name_arg}, key={key_arg}")
     else:
-        obd_device = Obd()
+        obd = Obd()
         print(f"Using default details")
 
-    # Initialize Firebase Admin SDK
-    while True:
-        try:
-            cred = credentials.Certificate(f"{os.getcwd()}/car-driver-bc91f-firebase-adminsdk-xhkyn-214c09b623.json")
-            firebase_admin.initialize_app(cred, {
-                'databaseURL': 'https://car-driver-bc91f-default-rtdb.asia-southeast1.firebasedatabase.app/'
-            })
-            print("Firebase initialized successfully.")
-            break
-        except Exception as e:
-            print(f"Error initializing Firebase: {e}. Retrying in 5 seconds...")
-            obd_device.shutDown()
-            time.sleep(1)
-
+    driving = Driving(obd)
 
     # Schedule set_active to run periodically
     def set_alive_periodically():
         while True:
-            obd_device.setAlive()
+            driving.getOBD().setAlive()
             time.sleep(10)  # Run this check every 10 seconds
-
 
     # Run set_active in a separate thread
     threading.Thread(target=set_alive_periodically, daemon=True).start()
@@ -93,14 +70,13 @@ if __name__ == '__main__':
         while not success:
             print("Attempting to set up Firebase listener...")
             try:
-                db.reference(ENTRIES_REFERENCE).child(obd_device.id).listen(entrylistener)
-                obd_device.startUp()
+                db.reference(ENTRIES_REFERENCE).child(driving.getOBD().id).listen(entrylistener)
+                driving.getOBD().startUp()
                 success = True
             except Exception as e:
                 print(f"Error setting up Firebase listener: {e}. Retrying in 5 seconds...")
                 time.sleep(5)
     except Exception as e:
-        obd_device.shutDown()
+        driving.getOBD().shutDown()
         print(f"Crashed with error {e}.")
         time.sleep(5)
-
