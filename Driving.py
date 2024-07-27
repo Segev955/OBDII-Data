@@ -17,6 +17,7 @@ SAVE_DIR = 'Drives'
 UPLOADED_DIR = 'Uploaded'
 DRIVES_COLLECTION = 'Drives'
 
+
 class Driving:
     def __init__(self, obd_device: Obd):
         while True:
@@ -40,6 +41,8 @@ class Driving:
         self.bus = None
         self.GPSConnected = False
         self.q = queue.Queue()
+        self.drive_thread = None
+        self.csvfile = None
 
         self.ENGINE_COOLANT_TEMP = 0x05
         self.ENGINE_RPM = 0x0C
@@ -51,6 +54,13 @@ class Driving:
         self.TEST1 = 0x50
         self.PID_REQUEST = 0x7DF
         self.PID_REPLY = 0x7E8
+
+        # Start the speed limit update thread
+        speed_limit_thread = threading.Thread(target=self.update_speed_limit)
+        speed_limit_thread.daemon = True  # This will allow the thread to terminate when the main program exits
+        speed_limit_thread.start()
+
+        # Upload saved files that have not uploaded.
         self.upload_all()
 
     def getOBD(self):
@@ -60,13 +70,8 @@ class Driving:
         try:
             if not self.obd_device.is_busy:
                 self.obd_device.updateStatus("starting...")
-                print(f"Start command received. Driver: {self.obd_device.connected_uid}. Running data collection script...")
-
-                # Start the speed limit update thread
-                speed_limit_thread = threading.Thread(target=self.update_speed_limit)
-                speed_limit_thread.daemon = True  # This will allow the thread to terminate when the main program exits
-                speed_limit_thread.start()
-
+                print(
+                    f"Start command received. Driver: {self.obd_device.connected_uid}. Running data collection script...")
 
                 # Start PiCAN2 board
                 GPIO.setmode(GPIO.BCM)
@@ -91,31 +96,28 @@ class Driving:
                     return
 
                 self.obd_device.is_busy = True
-                self.drive()
+                self.drive_thread = Thread(target=self.drive)
+                self.drive_thread.start()
         except Exception as e:
             self.obd_device.is_busy = False
             self.obd_device.updateStatus(f"Error: {e}")
             print(f"Error during startDriving: {e}")
-     
-     #just for testing without a car       
-    def fakeDrive(self):
-        while self.obd_device.is_busy:
-                print('driving..... ')
-                time.sleep (3)
-        print('stopped')
 
     def stopDriving(self):
         self.obd_device.updateStatus("Stop call")
         if self.obd_device.is_busy:
             self.obd_device.is_busy = False
+            if self.drive_thread is not None:
+                self.drive_thread.join()
             self.obd_device.updateStatus("Stopping...")
             print("Stop command received")
-            # When the driving is stopped
-            print("Stopped successfully")
-            self.obd_device.updateStatus("Stopped successfully")
             GPIO.output(self.led, False)
-            #csvfile.close()
+            if self.csvfile is not None:
+                self.csvfile.close()
+                self.csvfile = None
             self.upload_all()
+            self.obd_device.updateStatus("Stopped successfully")
+            print("Stopped successfully")
 
     def connectGPS(self):
         if not GPS.connectGPS():
@@ -126,12 +128,13 @@ class Driving:
         return True
 
     def update_speed_limit(self):
-        try:
-            while True:
+        print('Starting speed limit listener')
+        while True:
+            try:
                 self.obd_device.updateSpeedLimit()
                 time.sleep(10)  # Check for speed limit every 10 seconds
-        except KeyboardInterrupt:
-            print("Speed limit update interrupted")
+            except KeyboardInterrupt:
+                print("Speed limit update interrupted")
 
     # Upload the file to Firebase Storage
     def upload_file_to_storage(self, file_path, collection_name, document_id):
@@ -223,8 +226,8 @@ class Driving:
             print(f"CAN TX Error: {e}")
 
     def drive(self):
-        if self.obd_device.is_busy:
-            try:
+        try:
+            if self.obd_device.is_busy:
                 rx = Thread(target=self.can_rx_task)
                 rx.start()
                 tx = Thread(target=self.can_tx_task)
@@ -309,17 +312,28 @@ class Driving:
                                 writer.writerow(data)
                                 count += 1
 
-                        
-
-                except KeyboardInterrupt:
+                except Exception as e:
+                    print(f"Error in main loop: {e}")
                     self.obd_device.is_busy = False
-                    self.obd_device.updateStatus("Error")
-                    # Clean up
-                    os.system("sudo /sbin/ip link set can0 down")
-                    print('\n\rKeyboard interrupt')
+                    self.obd_device.updateStatus(f"Error in main loop: {e}")
+                    GPIO.output(self.led, False)
+                    if self.csvfile is not None:
+                        self.csvfile.close()
+                        self.csvfile = None
 
-            except Exception as e:
-                print(f"Error: {e}")
-                self.obd_device.updateStatus(str(e))
-                self.obd_device.is_busy = False  # If an error occurs, ensure is_busy is set to False
-                sys.exit()
+                finally:
+                    self.obd_device.is_busy = False
+                    self.obd_device.updateStatus("Drive ended")
+                    GPIO.output(self.led, False)
+                    if self.csvfile is not None:
+                        self.csvfile.close()
+                        self.csvfile = None
+
+        except Exception as e:
+            print(f"Error in drive function: {e}")
+            self.obd_device.is_busy = False
+            self.obd_device.updateStatus(f"Error in drive function: {e}")
+            GPIO.output(self.led, False)
+            if self.csvfile is not None:
+                self.csvfile.close()
+                self.csvfile = None

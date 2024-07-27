@@ -9,8 +9,13 @@ def update_obd_status():
         obd_ref = db.reference('/Obd')
         obd_snapshot = obd_ref.get()
 
+        if not obd_snapshot:
+            print("No OBD data found.")
+            time.sleep(60)
+            continue
+
         for obd_id, obd_data in obd_snapshot.items():
-            if 'is_alive' in obd_data and obd_data['is_alive']:
+            if isinstance(obd_data, dict) and 'is_alive' in obd_data and obd_data['is_alive'] is not None:
                 obd_ref.child(obd_id).update({'is_alive': False})
                 print(f'OBD {obd_id} is_alive updated')
 

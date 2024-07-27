@@ -29,7 +29,7 @@ class Obd:
         self.key = key
         self.status = ''
         self.connected_uid = ''
-        self.speed_limit = 0
+        self.speed_limit = 0 
         self.is_alive = Obd.is_alive
         self.is_available = Obd.is_available
         self.is_busy = Obd.is_busy
@@ -41,11 +41,15 @@ class Obd:
 
     def isConnected(self):
         return self.connected_uid != ''
-        
+
     def updateSpeedLimit(self):
         currsl = 0
         if self.gps.isGPSConnected():
             currsl = self.gps.getSpeedLimit()
+        try:
+            currsl = int(currsl)
+        except ValueError:
+            currsl = 0  
         if currsl != self.speed_limit:
             self.speed_limit = currsl
             self.updateStatus(f'SPEED_LIMIT: {self.speed_limit}')
@@ -126,4 +130,3 @@ class Obd:
         db.reference(OBD_REFERENCE).child(self.id).set(dict)
         if self.isConnected():
             db.reference(USERS_REFERENCE).child(self.connected_uid).child('connected_obd').set(self.id)
-
