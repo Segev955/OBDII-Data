@@ -10,6 +10,7 @@ class GPS:
         self.last_speed_limit = 0
         self.last_speed_limit_time = 0
         self.is_connected = False
+        self.nx = None
 
     def get_speed_limit(self, latitude, longitude):
         overpass_url = "http://overpass-api.de/api/interpreter"
@@ -22,12 +23,15 @@ class GPS:
         try:
             response = requests.get(overpass_url, params={'data': overpass_query})
             data = response.json()
+            print(data)
             if 'elements' in data:
+                print('elements')
                 for element in data['elements']:
                     if 'tags' in element:
                         tags = element['tags']
                         if 'maxspeed' in tags:
                             speed_limit = tags['maxspeed']
+                            print(f"Speed limit: {speed_limit}")
                             return speed_limit
                 return None
             else:
@@ -38,18 +42,27 @@ class GPS:
 
     def getPositionData(self):
         try:
-            nx = self.gpsd.next()
-            if nx['class'] == 'TPV':
-                latitude = getattr(nx, 'lat', "Unknown")
-                longitude = getattr(nx, 'lon', "Unknown")
+            if self.nx['class'] == 'TPV':
+                latitude = getattr(self.nx, 'lat', "Unknown")
+                longitude = getattr(self.nx, 'lon', "Unknown")
+                print(f"Latitude: {latitude}, Longitude: {longitude}")
                 return self.speedLim(latitude, longitude)
         except Exception as e:
             print(f"Error getting position data: {e}")
             return None
 
+    def getCurrentValues(self):
+        try:
+            while True:
+                self.nx = self.gpsd.next()
+                time.sleep(0.2)
+        except StopIteration:
+            pass
+
     def speedLim(self, latitude, longitude):
         speed_limit = self.get_speed_limit(latitude, longitude)
         if speed_limit is not None:
+            print(f"Speed limit(speedLim): {speed_limit}")
             return speed_limit
         else:
             return 0
@@ -58,12 +71,11 @@ class GPS:
         if not self.is_connected:
             return 0
         try:
-            current_time = time.time()
-            if current_time - self.last_speed_limit_time > 10:
-                new_speed_limit = self.getPositionData()
-                if new_speed_limit is not None:
-                    self.last_speed_limit = new_speed_limit
-                    self.last_speed_limit_time = current_time
+            new_speed_limit = self.getPositionData()
+            print(f"Speed limit(speed_limit): {new_speed_limit}")
+            if new_speed_limit is not None:
+                self.last_speed_limit = new_speed_limit
+                print(f"Speed limit(speed_limit-if): {self.last_speed_limit}")
             return self.last_speed_limit
         except KeyboardInterrupt:
             print("Applications closed!")
@@ -77,6 +89,7 @@ class GPS:
             self.gpsd = gps(mode=WATCH_ENABLE | WATCH_NEWSTYLE)
             self.is_connected = True
             print("GPS connected successfully.")
+            threading.Thread(target=self.getCurrentValues).start()
         except Exception as e:
             self.is_connected = False
             print(f"Error initializing GPS: {e}")

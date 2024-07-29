@@ -11,6 +11,7 @@ def entrylistener(event):
             key = event.data.get("key", "Nothing")
 
             if driving.getOBD().connect(uid, key):
+                ###### turn off Algorithm thread
                 db.reference(OBD_REFERENCE).child(driving.getOBD().id).listen(drivelistener)
 
 def drivelistener(event):
@@ -63,6 +64,15 @@ if __name__ == '__main__':
 
     # Run set_active in a separate thread
     threading.Thread(target=set_alive_periodically, daemon=True).start()
+
+##### Thread for using the Algorithm
+
+##driving.startDriving(True)
+
+######
+
+
+
 
     # Get Available for connections
     try:

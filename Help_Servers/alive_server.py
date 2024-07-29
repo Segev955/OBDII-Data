@@ -9,6 +9,7 @@ def update_obd_status():
         obd_ref = db.reference('/Obd')
         obd_snapshot = obd_ref.get()
 
+
         if not obd_snapshot:
             print("No OBD data found.")
             time.sleep(60)

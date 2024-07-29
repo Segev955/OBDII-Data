@@ -13,9 +13,8 @@ import datetime
 import csv
 import shutil
 
-SAVE_DIR = 'Drives'
+SAVE_DIR = 'drives'
 UPLOADED_DIR = 'Uploaded'
-DRIVES_COLLECTION = 'Drives'
 
 
 class Driving:
@@ -43,6 +42,7 @@ class Driving:
         self.q = queue.Queue()
         self.drive_thread = None
         self.csvfile = None
+        self.outfile_path = None
 
         self.ENGINE_COOLANT_TEMP = 0x05
         self.ENGINE_RPM = 0x0C
@@ -56,17 +56,17 @@ class Driving:
         self.PID_REPLY = 0x7E8
 
         # Start the speed limit update thread
-        speed_limit_thread = threading.Thread(target=self.update_speed_limit)
-        speed_limit_thread.daemon = True  # This will allow the thread to terminate when the main program exits
-        speed_limit_thread.start()
+        self.speed_limit_thread = threading.Thread(target=self.update_speed_limit)
+        self.speed_limit_thread.daemon = True  # This will allow the thread to terminate when the main program exits
+        self.speed_limit_thread.start()
 
         # Upload saved files that have not uploaded.
-        self.upload_all()
+        # self.upload_all()
 
     def getOBD(self):
         return self.obd_device
 
-    def startDriving(self):
+    def startDriving(self, is_live=False):
         try:
             if not self.obd_device.is_busy:
                 self.obd_device.updateStatus("starting...")
@@ -96,7 +96,7 @@ class Driving:
                     return
 
                 self.obd_device.is_busy = True
-                self.drive_thread = Thread(target=self.drive)
+                self.drive_thread = Thread(target=self.drive(is_live))
                 self.drive_thread.start()
         except Exception as e:
             self.obd_device.is_busy = False
@@ -107,20 +107,30 @@ class Driving:
         self.obd_device.updateStatus("Stop call")
         if self.obd_device.is_busy:
             self.obd_device.is_busy = False
+
             if self.drive_thread is not None:
                 self.drive_thread.join()
+                self.drive_thread = None
+
+            # if self.speed_limit_thread is not None:
+            #     self.speed_limit_thread.join()
+            #     self.speed_limit_thread = None
+
             self.obd_device.updateStatus("Stopping...")
             print("Stop command received")
             GPIO.output(self.led, False)
+            os.system("sudo /sbin/ip link set can0 down")
+
             if self.csvfile is not None:
                 self.csvfile.close()
                 self.csvfile = None
-            self.upload_all()
+
+            self.upload_file_to_storage(self.outfile_path)
             self.obd_device.updateStatus("Stopped successfully")
             print("Stopped successfully")
 
     def connectGPS(self):
-        if not GPS.connectGPS():
+        if not self.obd_device.gps.connectGPS():
             self.obd_device.updateStatus("GPS Error")
             print("GPS Error")
             return False
@@ -132,21 +142,16 @@ class Driving:
         while True:
             try:
                 self.obd_device.updateSpeedLimit()
-                time.sleep(10)  # Check for speed limit every 10 seconds
+                time.sleep(1)  # Check for speed limit every 10 seconds
             except KeyboardInterrupt:
                 print("Speed limit update interrupted")
 
     # Upload the file to Firebase Storage
-    def upload_file_to_storage(self, file_path, collection_name, document_id):
-        blob = self.bucket.blob(f'{DRIVES_COLLECTION}/{self.obd_device.connected_uid}/{os.path.basename(file_path)}')
+    def upload_file_to_storage(self, file_path):
+        blob = self.bucket.blob(f'{SAVE_DIR}/{self.obd_device.connected_uid}/{os.path.basename(file_path)}')
         blob.upload_from_filename(file_path)
         blob.make_public()
 
-        doc_ref = self.db.collection(collection_name).document(document_id)
-        doc_ref.set({
-            'file_name': os.path.basename(file_path),
-            'file_url': blob.public_url
-        })
         print(f"File {file_path} uploaded to Firebase Storage and reference saved to Firestore.")
         self.obd_device.updateStatus('Upload complete')
 
@@ -159,7 +164,7 @@ class Driving:
     def upload_all(self, dir=SAVE_DIR):
         for file in os.listdir(dir):
             if file.endswith(".csv"):
-                self.upload_file_to_storage(f'{dir}/{file}', DRIVES_COLLECTION, file)
+                self.upload_file_to_storage(file)
 
     def can_rx_task(self):  # Receive thread
         try:
@@ -225,7 +230,8 @@ class Driving:
             self.obd_device.updateStatus(f"CAN TX Error: {e}")
             print(f"CAN TX Error: {e}")
 
-    def drive(self):
+
+    def drive(self, is_live=False):
         try:
             if self.obd_device.is_busy:
                 rx = Thread(target=self.can_rx_task)
@@ -248,9 +254,9 @@ class Driving:
                     # Open CSV file and write header
                     current_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
                     outfile_name = f'{self.obd_device.connected_uid}_{current_time}'
-                    outfile_path = f'{SAVE_DIR}/{outfile_name}.csv'
+                    self.outfile_path = f'{SAVE_DIR}/{outfile_name}.csv'
 
-                    with open(outfile_path, 'w', newline='') as csvfile:
+                    with open(self.outfile_path, 'w', newline='') as csvfile:
                         fieldnames = ['timestamp', 'datetime', 'count', 'temperature', 'rpm', 'speed', 'throttle',
                                       'fuel',
                                       'speedLimit',
@@ -325,6 +331,7 @@ class Driving:
                     self.obd_device.is_busy = False
                     self.obd_device.updateStatus("Drive ended")
                     GPIO.output(self.led, False)
+                    os.system("sudo /sbin/ip link set can0 down")
                     if self.csvfile is not None:
                         self.csvfile.close()
                         self.csvfile = None

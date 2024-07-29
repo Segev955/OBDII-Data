@@ -46,13 +46,16 @@ class Obd:
         currsl = 0
         if self.gps.isGPSConnected():
             currsl = self.gps.getSpeedLimit()
+            print(f'1-current speed limit: {currsl}')
         try:
             currsl = int(currsl)
+            print(f'2-current speed limit: {currsl}')
         except ValueError:
             currsl = 0  
         if currsl != self.speed_limit:
+            print(f'3-current speed limit: {currsl}')
             self.speed_limit = currsl
-            self.updateStatus(f'SPEED_LIMIT: {self.speed_limit}')
+            # self.updateStatus(f'SPEED_LIMIT: {self.speed_limit}')
             print(f'speed limit updated to: {self.speed_limit}')
 
     def updateStatus(self, status='available'):
@@ -96,7 +99,7 @@ class Obd:
         self.is_available = True
         self.is_busy = False
         self.gps.connectGPS()
-        self.updateSpeedLimit()
+        # self.updateSpeedLimit()
         print("Ready for connections...")
         self.updateStatus("Ready")
 
