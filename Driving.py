@@ -66,10 +66,11 @@ class Driving:
     def getOBD(self):
         return self.obd_device
 
-    def startDriving(self, is_live=False):
+    def startDriving(self, driver=True):
         try:
             if not self.obd_device.is_busy:
-                self.obd_device.updateStatus("starting...")
+                if(driver):
+                    self.obd_device.updateStatus("starting...")
                 print(
                     f"Start command received. Driver: {self.obd_device.connected_uid}. Running data collection script...")
 
@@ -92,15 +93,17 @@ class Driving:
                 except OSError:
                     print('Cannot find PiCAN board.')
                     GPIO.output(self.led, False)
-                    self.obd_device.updateStatus("CAN board error")
+                    if driver:
+                        self.obd_device.updateStatus("CAN board error")
                     return
 
                 self.obd_device.is_busy = True
-                self.drive_thread = Thread(target=self.drive(is_live))
+                self.drive_thread = Thread(target=self.drive(driver))
                 self.drive_thread.start()
         except Exception as e:
             self.obd_device.is_busy = False
-            self.obd_device.updateStatus(f"Error: {e}")
+            if driver:
+                self.obd_device.updateStatus(f"Error: {e}")
             print(f"Error during startDriving: {e}")
 
     def stopDriving(self):
@@ -230,8 +233,14 @@ class Driving:
             self.obd_device.updateStatus(f"CAN TX Error: {e}")
             print(f"CAN TX Error: {e}")
 
+    def upload_data_to_realtime(self, data):
+        try:
+            db.reference(f"LiveData/{NAME}").push(data)
+            print(f"Data uploaded to Realtime Database: {data}")
+        except Exception as e:
+            print(f"Error uploading data to Realtime Database: {e}")
 
-    def drive(self, is_live=False):
+    def drive(self, drive=False):
         try:
             if self.obd_device.is_busy:
                 rx = Thread(target=self.can_rx_task)
@@ -317,6 +326,8 @@ class Driving:
                                 print(data)
                                 writer.writerow(data)
                                 count += 1
+                                if drive:
+                                    self.upload_data_to_realtime(data)
 
                 except Exception as e:
                     print(f"Error in main loop: {e}")

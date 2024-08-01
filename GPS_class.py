@@ -72,10 +72,10 @@ class GPS:
             return 0
         try:
             new_speed_limit = self.getPositionData()
-            print(f"Speed limit(speed_limit): {new_speed_limit}")
+            # print(f"Speed limit(speed_limit): {new_speed_limit}")
             if new_speed_limit is not None:
                 self.last_speed_limit = new_speed_limit
-                print(f"Speed limit(speed_limit-if): {self.last_speed_limit}")
+                # print(f"Speed limit(speed_limit-if): {self.last_speed_limit}")
             return self.last_speed_limit
         except KeyboardInterrupt:
             print("Applications closed!")

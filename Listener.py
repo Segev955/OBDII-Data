@@ -2,6 +2,7 @@ from Driving import *
 import atexit
 import threading
 
+nonDriverThread = None
 def entrylistener(event):
     if event.data is not None:
         print("Event path:", event.path)
@@ -30,6 +31,9 @@ def drivelistener(event):
                 if isinstance(event.data, str):
                     status = event.data
                     if status == 'start':
+                        if nonDriverThread is not None:
+                            driving.stopDriving()
+                            nonDriverThread.join()
                         driving_thread = threading.Thread(target=driving.startDriving)
                         driving_thread.start()
                     elif status == 'stop':
@@ -63,9 +67,14 @@ if __name__ == '__main__':
             time.sleep(10)  # Run this check every 10 seconds
 
     # Run set_active in a separate thread
-    threading.Thread(target=set_alive_periodically, daemon=True).start()
+    nonDriverThread = threading.Thread(target=set_alive_periodically, daemon=True)
+    nonDriverThread.start()
 
 ##### Thread for using the Algorithm
+
+    # Run set_active in a separate thread
+
+    threading.Thread(target=driving.startDriving(False), daemon=True).start()
 
 ##driving.startDriving(True)
 

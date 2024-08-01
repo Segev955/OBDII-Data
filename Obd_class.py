@@ -46,14 +46,14 @@ class Obd:
         currsl = 0
         if self.gps.isGPSConnected():
             currsl = self.gps.getSpeedLimit()
-            print(f'1-current speed limit: {currsl}')
+            # print(f'1-current speed limit: {currsl}')
         try:
             currsl = int(currsl)
-            print(f'2-current speed limit: {currsl}')
+            # print(f'2-current speed limit: {currsl}')
         except ValueError:
             currsl = 0  
         if currsl != self.speed_limit:
-            print(f'3-current speed limit: {currsl}')
+            # print(f'3-current speed limit: {currsl}')
             self.speed_limit = currsl
             # self.updateStatus(f'SPEED_LIMIT: {self.speed_limit}')
             print(f'speed limit updated to: {self.speed_limit}')
