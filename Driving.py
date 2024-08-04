@@ -69,8 +69,10 @@ class Driving:
     def startDriving(self, driver=True):
         try:
             if not self.obd_device.is_busy:
-                if(driver):
+                if driver:
                     self.obd_device.updateStatus("starting...")
+                else:
+                    self.clean_data_realtime()
                 print(
                     f"Start command received. Driver: {self.obd_device.connected_uid}. Running data collection script...")
 
@@ -103,34 +105,34 @@ class Driving:
         except Exception as e:
             self.obd_device.is_busy = False
             if driver:
-                self.obd_device.updateStatus(f"Error: {e}")
+                self.obd_device.updateStatus(f"Error during startDriving")
             print(f"Error during startDriving: {e}")
 
     def stopDriving(self):
         self.obd_device.updateStatus("Stop call")
-        if self.obd_device.is_busy:
-            self.obd_device.is_busy = False
+        # if self.obd_device.is_busy:
+        self.obd_device.is_busy = False
 
-            if self.drive_thread is not None:
-                self.drive_thread.join()
-                self.drive_thread = None
+        if self.drive_thread is not None:
+            self.drive_thread.join()
+            self.drive_thread = None
 
-            # if self.speed_limit_thread is not None:
-            #     self.speed_limit_thread.join()
-            #     self.speed_limit_thread = None
+        # if self.speed_limit_thread is not None:
+        #     self.speed_limit_thread.join()
+        #     self.speed_limit_thread = None
 
-            self.obd_device.updateStatus("Stopping...")
-            print("Stop command received")
-            GPIO.output(self.led, False)
-            os.system("sudo /sbin/ip link set can0 down")
+        self.obd_device.updateStatus("Stopping...")
+        print("Stop command received")
+        GPIO.output(self.led, False)
+        os.system("sudo /sbin/ip link set can0 down")
 
-            if self.csvfile is not None:
-                self.csvfile.close()
-                self.csvfile = None
+        if self.csvfile is not None:
+            self.csvfile.close()
+            self.csvfile = None
 
-            self.upload_file_to_storage(self.outfile_path)
-            self.obd_device.updateStatus("Stopped successfully")
-            print("Stopped successfully")
+        self.upload_file_to_storage(self.outfile_path)
+        self.obd_device.updateStatus("Stopped successfully")
+        print("Stopped successfully")
 
     def connectGPS(self):
         if not self.obd_device.gps.connectGPS():
@@ -177,7 +179,7 @@ class Driving:
                     self.q.put(message)  # Put message into queue
         except Exception as e:
             self.obd_device.is_busy = False
-            self.obd_device.updateStatus(f"CAN RX Error: {e}")
+            self.obd_device.updateStatus(f"CAN RX Error")
             print(f"CAN RX Error: {e}")
 
     def can_tx_task(self):  # Transmit thread
@@ -230,15 +232,23 @@ class Driving:
                 time.sleep(0.1)
         except Exception as e:
             self.obd_device.is_busy = False
-            self.obd_device.updateStatus(f"CAN TX Error: {e}")
+            self.obd_device.updateStatus(f"CAN TX Error")
             print(f"CAN TX Error: {e}")
+            self.stopDriving()
 
     def upload_data_to_realtime(self, data):
         try:
-            db.reference(f"LiveData/{NAME}").push(data)
+            db.reference(f"LiveData/{ID}").push(data)
             print(f"Data uploaded to Realtime Database: {data}")
         except Exception as e:
             print(f"Error uploading data to Realtime Database: {e}")
+
+    def clean_data_realtime(self):
+        try:
+            db.reference(f"LiveData/{ID}").delete()
+            print("LiveData cleaned")
+        except Exception as e:
+            print(f"Error cleaning LiveData: {e}")
 
     def drive(self, drive=False):
         try:
@@ -258,11 +268,14 @@ class Driving:
                 previous_speed = None
                 previous_time = None
 
+                if not drive:
+                    self.obd_device.is_available = True
                 # Main loop
                 try:
                     # Open CSV file and write header
                     current_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
                     outfile_name = f'{self.obd_device.connected_uid}_{current_time}'
+                    print(f"Creating file: {outfile_name}")
                     self.outfile_path = f'{SAVE_DIR}/{outfile_name}.csv'
 
                     with open(self.outfile_path, 'w', newline='') as csvfile:
@@ -326,13 +339,13 @@ class Driving:
                                 print(data)
                                 writer.writerow(data)
                                 count += 1
-                                if drive:
+                                if not drive:
                                     self.upload_data_to_realtime(data)
 
                 except Exception as e:
                     print(f"Error in main loop: {e}")
                     self.obd_device.is_busy = False
-                    self.obd_device.updateStatus(f"Error in main loop: {e}")
+                    # self.obd_device.updateStatus(f"Error in main loop: {e}")
                     GPIO.output(self.led, False)
                     if self.csvfile is not None:
                         self.csvfile.close()
@@ -350,7 +363,7 @@ class Driving:
         except Exception as e:
             print(f"Error in drive function: {e}")
             self.obd_device.is_busy = False
-            self.obd_device.updateStatus(f"Error in drive function: {e}")
+            # self.obd_device.updateStatus(f"Error in drive function: {e}")
             GPIO.output(self.led, False)
             if self.csvfile is not None:
                 self.csvfile.close()

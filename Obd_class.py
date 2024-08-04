@@ -77,6 +77,7 @@ class Obd:
             if self.key == key:
                 self.connected_uid = uid
                 self.is_available = False
+                print(f"is_available(connect): {self.is_available}")
                 self.updateUserStatus(f'CONNECTED', self.connected_uid)
                 self.updateStatus("Connected")
                 print(f"User {uid} connected successfully!")
@@ -111,6 +112,7 @@ class Obd:
         print("Shutdown command received. Shutting down the Raspberry Pi...")
         self.is_alive = False
         self.is_available = False
+        print(f"is_available: {self.is_available}")
         self.updateStatus("turned off")
         try:
             subprocess.run(["sudo", "shutdown", "-h", "now"])

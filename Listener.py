@@ -12,7 +12,11 @@ def entrylistener(event):
             key = event.data.get("key", "Nothing")
 
             if driving.getOBD().connect(uid, key):
-                ###### turn off Algorithm thread
+                # Turn off the non-driver thread
+                if nonDriverThread is not None:
+                    driving.stopDriving()
+                    nonDriverThread.join()
+                    print("Stopped non-driver thread")
                 db.reference(OBD_REFERENCE).child(driving.getOBD().id).listen(drivelistener)
 
 def drivelistener(event):
@@ -31,9 +35,6 @@ def drivelistener(event):
                 if isinstance(event.data, str):
                     status = event.data
                     if status == 'start':
-                        if nonDriverThread is not None:
-                            driving.stopDriving()
-                            nonDriverThread.join()
                         driving_thread = threading.Thread(target=driving.startDriving)
                         driving_thread.start()
                     elif status == 'stop':
@@ -67,22 +68,11 @@ if __name__ == '__main__':
             time.sleep(10)  # Run this check every 10 seconds
 
     # Run set_active in a separate thread
-    nonDriverThread = threading.Thread(target=set_alive_periodically, daemon=True)
-    nonDriverThread.start()
-
-##### Thread for using the Algorithm
-
-    # Run set_active in a separate thread
-
-    threading.Thread(target=driving.startDriving(False), daemon=True).start()
-
-##driving.startDriving(True)
-
-######
+    threading.Thread(target=set_alive_periodically, daemon=True).start()
 
 
 
-
+    print("nonDriverThread started")
     # Get Available for connections
     try:
         success = False
@@ -99,3 +89,7 @@ if __name__ == '__main__':
         driving.getOBD().shutDown()
         print(f"Crashed with error {e}.")
         time.sleep(5)
+
+    # Start the non-driver thread
+    nonDriverThread = threading.Thread(target=driving.startDriving(False), daemon=True)
+    nonDriverThread.start()
