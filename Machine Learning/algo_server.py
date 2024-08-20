@@ -10,11 +10,12 @@ from keras import models
 from pre_process import pre_process
 
 REAL_TIME_REFERANCE = 'LiveData'
-OBD_REFERENCE = 'Obd'
+OBD_REFERENCE       = 'Obd'
+TIMESTAMPS          = 100
 
 obd_dict = {} #{key: value} - key: obd_id, value: row_counter
 
-model_file  = 'mlp_model.keras'
+model_file  = 'LSTM_model.keras'
 try: 
     model = models.load_model(model_file)
 except FileNotFoundError as e:
@@ -52,7 +53,7 @@ def get_live_data():
 
 def run_algorithm(obd_id):
     data =[]
-    while True:
+    for _ in range(TIMESTAMPS):
         row_index = obd_dict[obd_id]
         obd_ref = db.reference(f'{REAL_TIME_REFERANCE}/{obd_id}')
         obd_snapshot = obd_ref.get()
@@ -118,8 +119,10 @@ def run_algorithm(obd_id):
             #time.sleep(1)
 
         if max(prediction) > 0.8: #if prediction certainty is greater than 80%
-            return driver_result #TODO remove value from return if not needed 
+            return #TODO do we need to return a value? e.g. driver_result
         #TODO change while True to a for loop after which car reported stolen (ideal), or add a "forth" driver to the model that will be the thief.
+    
+    db.reference(OBD_REFERENCE).child(obd_id).child('last_driver').set('STOLEN')
 
 
 def run_algo_server():
