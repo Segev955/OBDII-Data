@@ -21,8 +21,7 @@ class Driving:
     def __init__(self, obd_device: Obd):
         while True:
             try:
-                cred = credentials.Certificate(
-                    f"{os.getcwd()}/car-driver.json")
+                cred = credentials.Certificate(f"{os.getcwd()}/car-driver.json")
                 firebase_admin.initialize_app(cred, {
                     'storageBucket': 'car-driver-bc91f.appspot.com',
                     'databaseURL': 'https://car-driver-bc91f-default-rtdb.asia-southeast1.firebasedatabase.app/'
