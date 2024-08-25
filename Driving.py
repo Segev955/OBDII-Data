@@ -22,7 +22,7 @@ class Driving:
         while True:
             try:
                 cred = credentials.Certificate(
-                    f"{os.getcwd()}/car-driver-bc91f-firebase-adminsdk-xhkyn-214c09b623.json")
+                    f"{os.getcwd()}/car-driver.json")
                 firebase_admin.initialize_app(cred, {
                     'storageBucket': 'car-driver-bc91f.appspot.com',
                     'databaseURL': 'https://car-driver-bc91f-default-rtdb.asia-southeast1.firebasedatabase.app/'
@@ -238,7 +238,7 @@ class Driving:
 
     def upload_data_to_realtime(self, data):
         try:
-            db.reference(f"LiveData/{ID}").push(data)
+            db.reference(f"LiveData/{ID}").child(str(data['count'])).set(data)
             print(f"Data uploaded to Realtime Database: {data}")
         except Exception as e:
             print(f"Error uploading data to Realtime Database: {e}")

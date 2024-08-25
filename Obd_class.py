@@ -8,7 +8,7 @@ import subprocess
 from GPS_class import *
 from firebase_admin import credentials, db
 
-ID = '1'
+ID = 'obd1'
 NAME = "car_drive"
 KEY = '1234'
 

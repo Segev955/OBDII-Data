@@ -31,7 +31,7 @@ if __name__ == '__main__':
     # Initialize Firebase Admin SDK
     while True:
         try:
-            cred = credentials.Certificate(f"{os.getcwd()}/car-driver-bc91f-firebase-adminsdk-xhkyn-214c09b623.json")
+            cred = credentials.Certificate(f"{os.getcwd()}/car-driver.json")
             firebase_admin.initialize_app(cred, {
                 'databaseURL': 'https://car-driver-bc91f-default-rtdb.asia-southeast1.firebasedatabase.app/'
             })

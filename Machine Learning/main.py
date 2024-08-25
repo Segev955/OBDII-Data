@@ -113,7 +113,7 @@ def download_firebase_train():
     local_path = f"/Users/arnoldcheskis/Documents/Projects/Archive/LimudNaim/Driving_project_lesson-LimudNaim/data/"
 
     'Initialize Firebase Admin SDK'
-    cred = credentials.Certificate(f"{os.getcwd()}/car-driver-bc91f-firebase-adminsdk-xhkyn-214c09b623.json")
+    cred = credentials.Certificate(f"{os.getcwd()}/car-driver.json")
     firebase_admin.initialize_app(cred, {'storageBucket': 'car-driver-bc91f.appspot.com'})
 
     bucket  = storage.bucket()
