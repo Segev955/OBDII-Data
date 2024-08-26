@@ -9,7 +9,7 @@ from GPS_class import *
 from firebase_admin import credentials, db
 
 ID = 'obd1'
-NAME = "car_drive"
+NAME = "SEAT Ibiza"
 KEY = '1234'
 
 OBD_REFERENCE = 'Obd'
@@ -29,11 +29,13 @@ class Obd:
         self.key = key
         self.status = ''
         self.connected_uid = ''
-        self.speed_limit = 0 
+        self.speed_limit = 0
         self.is_alive = Obd.is_alive
         self.is_available = Obd.is_available
         self.is_busy = Obd.is_busy
         self.gps = GPS()
+        self.latitude = 0
+        self.longitude = 0
 
     def setAlive(self):
         self.is_alive = True
@@ -51,7 +53,7 @@ class Obd:
             currsl = int(currsl)
             # print(f'2-current speed limit: {currsl}')
         except ValueError:
-            currsl = 0  
+            currsl = 0
         if currsl != self.speed_limit:
             # print(f'3-current speed limit: {currsl}')
             self.speed_limit = currsl
@@ -69,6 +71,14 @@ class Obd:
         if uid is not None and uid != '':
             print(f'setting status <{status}> to user <{uid}>')
             db.reference(USERS_REFERENCE).child(uid).child('status').set(f'OBD {self.name}: {status}')
+
+    def updateLocation(self):
+        print(self.gps.latitude, self.gps.longitude)
+        if self.gps.latitude != 0 and self.gps.longitude != 0:
+            print("update location")
+            self.latitude = self.gps.latitude
+            self.longitude = self.gps.longitude
+            self.updateData()
 
     def connect(self, uid, key):
         db.reference(ENTRIES_REFERENCE).child(self.id).delete()
@@ -121,17 +131,39 @@ class Obd:
             print(f"Error, no OBD device connected: {e}.")
 
     def updateData(self):
-        dict = {
-            'id': self.id,
-            'name': self.name,
-            'status': self.status,
-            'connected_uid': self.connected_uid,
-            'is_alive': self.is_alive,
-            'is_available': self.is_available,
-            'is_busy': self.is_busy,
-            'is_connected': self.isConnected(),
-            'speed_limit': self.speed_limit
-        }
-        db.reference(OBD_REFERENCE).child(self.id).set(dict)
-        if self.isConnected():
-            db.reference(USERS_REFERENCE).child(self.connected_uid).child('connected_obd').set(self.id)
+        # Retrieve the existing data from Firebase
+        try:
+            existing_data = db.reference(OBD_REFERENCE).child(self.id).get()
+
+            # If there's no existing data, start with an empty dictionary
+            if not existing_data:
+                existing_data = {}
+
+            # Update the fields we want to change, or retain the existing ones
+            existing_data.update({
+                'id': self.id,
+                'name': self.name,
+                'status': self.status,
+                'connected_uid': self.connected_uid,
+                'is_alive': self.is_alive,
+                'is_available': self.is_available,
+                'is_busy': self.is_busy,
+                'is_connected': self.isConnected(),
+                'speed_limit': self.speed_limit
+            })
+
+            # Only update latitude and longitude if they are not 0
+            if self.latitude != 0:
+                existing_data['latitude'] = self.latitude
+            if self.longitude != 0:
+                existing_data['longitude'] = self.longitude
+
+            # Update Firebase with the modified dictionary
+            db.reference(OBD_REFERENCE).child(self.id).set(existing_data)
+
+            # Update connected OBD reference for the user if connected
+            if self.isConnected():
+                db.reference(USERS_REFERENCE).child(self.connected_uid).child('connected_obd').set(self.id)
+
+        except Exception as e:
+            print(f"Error updating data: {e}")

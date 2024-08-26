@@ -3,6 +3,7 @@ from gps import *
 import time
 import threading
 
+
 class GPS:
     def __init__(self):
         self.gpsd = None
@@ -11,6 +12,8 @@ class GPS:
         self.last_speed_limit_time = 0
         self.is_connected = False
         self.nx = None
+        self.latitude = 0
+        self.longitude = 0
 
     def get_speed_limit(self, latitude, longitude):
         overpass_url = "http://overpass-api.de/api/interpreter"
@@ -25,13 +28,11 @@ class GPS:
             data = response.json()
             print(data)
             if 'elements' in data:
-                print('elements')
                 for element in data['elements']:
                     if 'tags' in element:
                         tags = element['tags']
                         if 'maxspeed' in tags:
                             speed_limit = tags['maxspeed']
-                            print(f"Speed limit: {speed_limit}")
                             return speed_limit
                 return None
             else:
@@ -43,10 +44,10 @@ class GPS:
     def getPositionData(self):
         try:
             if self.nx['class'] == 'TPV':
-                latitude = getattr(self.nx, 'lat', "Unknown")
-                longitude = getattr(self.nx, 'lon', "Unknown")
-                print(f"Latitude: {latitude}, Longitude: {longitude}")
-                return self.speedLim(latitude, longitude)
+                self.latitude = getattr(self.nx, 'lat', "Unknown")
+                self.longitude = getattr(self.nx, 'lon', "Unknown")
+                print(f"Latitude: {self.latitude}, Longitude: {self.longitude}")
+                return self.speedLim(self.latitude, self.longitude)
         except Exception as e:
             print(f"Error getting position data: {e}")
             return None
@@ -62,7 +63,6 @@ class GPS:
     def speedLim(self, latitude, longitude):
         speed_limit = self.get_speed_limit(latitude, longitude)
         if speed_limit is not None:
-            print(f"Speed limit(speedLim): {speed_limit}")
             return speed_limit
         else:
             return 0
@@ -112,6 +112,7 @@ class GPS:
     def getSpeedLimit(self):
         return self.speed_limit()
 
+
 def monitorGPS():
     gps = GPS()
     gps.connectGPS()
@@ -124,7 +125,7 @@ def monitorGPS():
         elif not is_connected and was_connected != False:
             print("GPS disconnected")
             was_connected = False
-        
+
         speed_limit = gps.getSpeedLimit()
         print(f"Current speed limit: {speed_limit}")
 

@@ -71,7 +71,10 @@ class Driving:
                 if driver:
                     self.obd_device.updateStatus("starting...")
                 else:
+                    if not self.connectGPS():
+                        print("not connected")
                     self.clean_data_realtime()
+                    time.sleep(5)
                 print(
                     f"Start command received. Driver: {self.obd_device.connected_uid}. Running data collection script...")
 
@@ -238,7 +241,10 @@ class Driving:
     def upload_data_to_realtime(self, data):
         try:
             db.reference(f"LiveData/{ID}").child(str(data['count'])).set(data)
-            print(f"Data uploaded to Realtime Database: {data}")
+            #print(f"Data uploaded to Realtime Database: {data}")
+            if not self.GPSConnected:
+                self.connectGPS()
+            self.obd_device.updateLocation()
         except Exception as e:
             print(f"Error uploading data to Realtime Database: {e}")
 
@@ -335,7 +341,7 @@ class Driving:
                                     'speedLimit': self.obd_device.speed_limit,
                                     'acceleration': acceleration
                                 }
-                                print(data)
+                                #print(data)
                                 writer.writerow(data)
                                 count += 1
                                 if not drive:
